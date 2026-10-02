@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+# The real gitlab-ci-linter sends the file to a GitLab instance's lint API, which
+# needs network access and a token. This stands in for it with the same argv and
+# exit codes: 1 for a missing file, 10 for an invalid config.
+if [ "$#" -ne 3 ] || [ "$1" != "--no-color" ] || [ "$2" != "check" ]; then
+  echo "expected: gitlab-ci-linter --no-color check <file>, got: $*" >&2
+  exit 2
+fi
+file=$3
+if [ ! -f "$file" ]; then
+  echo "'$file' does not exists" >&2
+  exit 1
+fi
+
+printf 'Validating %s... ' "$file"
+if ! grep -q 'script:' "$file"; then
+  echo "KO"
+  echo "jobs:test config should implement the script:, run:, or trigger: keyword" >&2
+  exit 10
+fi
+echo "OK"

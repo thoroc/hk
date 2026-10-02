@@ -1,0 +1,51 @@
+import "../Builtins.pkl"
+import "../Config.pkl"
+import "./test/helpers.pkl"
+
+@Builtins.meta {
+  category = "Infrastructure"
+  description =
+    "GitLab CI config validator using the GitLab lint API (needs network access and usually a token). See https://gitlab.com/orobardet/gitlab-ci-linter"
+  project_indicators {
+    new { file = ".gitlab-ci.yml" }
+  }
+}
+gitlab_ci_linter = new Config.Step {
+  // The tool checks one file per run, and GitLab only reads the root file by default
+  glob = List(".gitlab-ci.yml")
+  check = new Config.CommandSpec {
+    command = new Config.Command {
+      argv = List("gitlab-ci-linter", "--no-color", "check", "{{files}}")
+    }
+    effect = "read"
+  }
+  tests {
+    // The real tool posts the file to a GitLab instance, so the tests run against
+    // test/builtin_tool_fake_bins/gitlab-ci-linter, which mimics its argv and exit codes
+    local const testMaker = new helpers.TestMaker {
+      filename = ".gitlab-ci.yml"
+      before = "git init"
+    }
+    ["check bad file"] =
+      testMaker.checkFail(
+        """
+          stages:
+            - test
+          test:
+            stage: test
+        """,
+        10,
+      )
+    ["check good file"] =
+      testMaker.checkPass(
+        """
+          stages:
+            - test
+          test:
+            stage: test
+            script:
+              - echo "Pass"
+        """,
+      )
+  }
+}
