@@ -25,7 +25,17 @@ gitlab_ci_linter = new Config.Step {
     local const testMaker = new helpers.TestMaker {
       filename = ".gitlab-ci.yml"
       before = "git init"
+      env { ["GCL_PERSONAL_ACCESS_TOKEN"] = "test-token" }
     }
+    ["check without token"] =
+      (testMaker) { env { ["GCL_PERSONAL_ACCESS_TOKEN"] = "" } }.checkFail(
+        """
+          test:
+            script:
+              - echo "Pass"
+        """,
+        5,
+      )
     ["check bad file"] =
       testMaker.checkFail(
         """

@@ -3,7 +3,8 @@ set -eu
 
 # The real gitlab-ci-linter sends the file to a GitLab instance's lint API, which
 # needs network access and a token. This stands in for it with the same argv and
-# exit codes: 1 for a missing file, 10 for an invalid config.
+# exit codes: 1 for a missing file, 5 when the API refuses a request without a
+# token, 10 for an invalid config.
 if [ "$#" -ne 3 ] || [ "$1" != "--no-color" ] || [ "$2" != "check" ]; then
   echo "expected: gitlab-ci-linter --no-color check <file>, got: $*" >&2
   exit 2
@@ -15,6 +16,10 @@ if [ ! -f "$file" ]; then
 fi
 
 printf 'Validating %s... ' "$file"
+if [ -z "${GCL_PERSONAL_ACCESS_TOKEN:-}" ]; then
+  echo "error linting using Gitlab API: HTTP request failed with status 403 Forbidden" >&2
+  exit 5
+fi
 if ! grep -q 'script:' "$file"; then
   echo "KO"
   echo "jobs:test config should implement the script:, run:, or trigger: keyword" >&2
